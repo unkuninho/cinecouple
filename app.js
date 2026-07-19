@@ -3,6 +3,7 @@
 // ============================================================
 let coupleData = null;      // { name, partner1Name, partner2Name }
 let titles = [];            // lista de títulos vindos do Firestore
+let currentUid = null;      // uid do usuário logado (mais confiável que auth.currentUser)
 let currentStatusTab = "watchlist";
 let unsubscribeTitles = null;
 let selectedType = "filme"; // usado no modal de adicionar título
@@ -106,6 +107,7 @@ function traduzErro(err) {
 
 auth.onAuthStateChanged(async (user) => {
   if (user) {
+    currentUid = user.uid;
     try {
       const doc = await db.collection("couples").doc(user.uid).get();
       if (!doc.exists) {
@@ -124,6 +126,7 @@ auth.onAuthStateChanged(async (user) => {
   } else {
     coupleData = null;
     titles = [];
+    currentUid = null;
     if (unsubscribeTitles) { unsubscribeTitles(); unsubscribeTitles = null; }
     showScreen("auth-screen");
   }
@@ -133,7 +136,7 @@ auth.onAuthStateChanged(async (user) => {
 // FIRESTORE: TÍTULOS
 // ============================================================
 function titlesCollection() {
-  return db.collection("couples").doc(auth.currentUser.uid).collection("titles");
+  return db.collection("couples").doc(currentUid).collection("titles");
 }
 
 function subscribeTitles(uid) {
