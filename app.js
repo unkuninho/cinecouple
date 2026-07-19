@@ -32,6 +32,47 @@ function showScreen(id) {
 
 function closeAllModals() {
   $all(".modal-overlay").forEach(m => m.setAttribute("hidden", ""));
+  activeDetailId = null;
+  activeRateId = null;
+}
+
+let toastTimer = null;
+function showToast(message, type = "error") {
+  const el = $("#toast");
+  if (!el) { alert(message); return; }
+  el.textContent = message;
+  el.className = `toast toast-${type}`;
+  el.removeAttribute("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.setAttribute("hidden", ""), 4500);
+}
+
+// Trava/destrava um botão de submit enquanto uma operação assíncrona roda,
+// pra evitar cliques duplos e deixar claro que algo está acontecendo.
+async function withLoading(button, fn) {
+  const originalText = button ? button.textContent : null;
+  if (button) { button.disabled = true; button.textContent = "Salvando..."; }
+  try {
+    await fn();
+  } catch (err) {
+    console.error(err);
+    showToast(mensagemErroFirestore(err));
+  } finally {
+    if (button) { button.disabled = false; button.textContent = originalText; }
+  }
+}
+
+function mensagemErroFirestore(err) {
+  if (err && err.code === "permission-denied") {
+    return "Sem permissão pra salvar. Confira as regras do Firestore (veja o README).";
+  }
+  if (err && err.message && err.message.includes("empty path")) {
+    return "Perdemos a referência do título. Feche o modal e tente de novo.";
+  }
+  if (!navigator.onLine) {
+    return "Você parece estar offline. Verifique sua internet e tente de novo.";
+  }
+  return "Não deu pra salvar agora. Tente de novo em instantes.";
 }
 
 $all("[data-close-modal]").forEach(btn => {
@@ -136,6 +177,9 @@ auth.onAuthStateChanged(async (user) => {
 // FIRESTORE: TÍTULOS
 // ============================================================
 function titlesCollection() {
+  if (!currentUid) {
+    throw new Error("Sessão não identificada (currentUid vazio).");
+  }
   return db.collection("couples").doc(currentUid).collection("titles");
 }
 
@@ -145,7 +189,10 @@ function subscribeTitles(uid) {
     .onSnapshot((snap) => {
       titles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderTitles();
-    }, (err) => console.error("Erro ao carregar títulos:", err));
+    }, (err) => {
+      console.error("Erro ao carregar títulos:", err);
+      showToast("Não consegui carregar a lista. Recarregue a página.");
+    });
 }
 
 // ============================================================
@@ -269,9 +316,17 @@ $("#add-title-form").addEventListener("submit", async (e) => {
   const titulo = $("#new-title").value.trim();
   const ano = $("#new-year").value ? parseInt($("#new-year").value, 10) : null;
   const posterUrl = $("#new-poster").value.trim() || null;
+  $("#add-title-error").textContent = "";
 
-  if (!titulo) return;
+  if (!titulo) {
+    $("#add-title-error").textContent = "Digita um título antes de adicionar.";
+    return;
+  }
 
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Adicionando...";
   try {
     await titlesCollection().add({
       tipo: selectedType,
@@ -286,8 +341,11 @@ $("#add-title-form").addEventListener("submit", async (e) => {
     });
     closeAllModals();
   } catch (err) {
-    $("#add-title-error").textContent = "Não deu pra adicionar. Tente de novo.";
     console.error(err);
+    $("#add-title-error").textContent = mensagemErroFirestore(err);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
   }
 });
 
@@ -409,52 +467,64 @@ function renderDetailModal() {
   }
 
   const startBtn = $("#detail-start-btn");
-  if (startBtn) startBtn.addEventListener("click", () => updateStatus(t.id, "assistindo"));
+  if (startBtn) startBtn.addEventListener("click", () => updateStatus(t.id, "assistindo", startBtn));
 
   const finishBtn = $("#detail-finish-btn");
   if (finishBtn) finishBtn.addEventListener("click", () => {
+    const idToRate = t.id;
     closeAllModals();
-    openRateModal(t.id);
+    openRateModal(idToRate);
   });
 
   const deleteBtn = $("#detail-delete-btn");
-  if (deleteBtn) deleteBtn.addEventListener("click", () => deleteTitle(t.id));
+  if (deleteBtn) deleteBtn.addEventListener("click", () => deleteTitle(t.id, deleteBtn));
 }
 
-async function updateStatus(id, status) {
-  try {
+async function updateStatus(id, status, button) {
+  if (!id) { showToast("Título não identificado. Feche e tente de novo."); return; }
+  await withLoading(button, async () => {
     await titlesCollection().doc(id).update({ status });
     closeAllModals();
-  } catch (err) { console.error(err); }
+  });
 }
 
-async function deleteTitle(id) {
+async function deleteTitle(id, button) {
+  if (!id) { showToast("Título não identificado. Feche e tente de novo."); return; }
   if (!confirm("Remover este título? Essa ação não pode ser desfeita.")) return;
-  try {
+  await withLoading(button, async () => {
     await titlesCollection().doc(id).delete();
     closeAllModals();
-  } catch (err) { console.error(err); }
+  });
 }
 
 async function addSeason(id, episodeCount) {
+  if (!id) { showToast("Título não identificado. Feche e tente de novo."); return; }
   const t = titles.find(x => x.id === id);
+  if (!t) { showToast("Não encontrei esse título na lista."); return; }
   const seasons = t.seasons ? [...t.seasons] : [];
   const numero = seasons.length + 1;
   const episodios = Array.from({ length: episodeCount }, (_, i) => ({ numero: i + 1, assistido: false }));
   seasons.push({ numero, episodios });
   try {
     await titlesCollection().doc(id).update({ seasons });
-    // a re-renderização acontece via onSnapshot -> renderDetailModal precisa ser re-chamada
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+    showToast(mensagemErroFirestore(err));
+  }
 }
 
 async function toggleEpisode(id, seasonIdx, epIdx) {
+  if (!id) { showToast("Título não identificado. Feche e tente de novo."); return; }
   const t = titles.find(x => x.id === id);
+  if (!t) { showToast("Não encontrei esse título na lista."); return; }
   const seasons = JSON.parse(JSON.stringify(t.seasons));
   seasons[seasonIdx].episodios[epIdx].assistido = !seasons[seasonIdx].episodios[epIdx].assistido;
   try {
     await titlesCollection().doc(id).update({ seasons });
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+    showToast(mensagemErroFirestore(err));
+  }
 }
 
 // Re-render do modal de detalhe quando os dados mudam (ex: episódio marcado)
@@ -470,8 +540,10 @@ renderTitles = function () {
 // MODAL: AVALIAR
 // ============================================================
 function openRateModal(id) {
-  activeRateId = id;
+  if (!id) { showToast("Título não identificado. Tente abrir de novo."); return; }
   const t = titles.find(x => x.id === id);
+  if (!t) { showToast("Não encontrei esse título na lista. Tente de novo."); return; }
+  activeRateId = id;
   $("#rate-title-name").textContent = t.titulo;
   $("#rate-name-a").textContent = coupleData.partner1Name;
   $("#rate-name-b").textContent = coupleData.partner2Name;
@@ -502,17 +574,23 @@ $("#rate-score-b").addEventListener("input", updateGauge);
 
 $("#rate-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!activeRateId) {
+    showToast("Perdemos a referência do título. Feche este modal e abra de novo pela lista.");
+    return;
+  }
+  const idToSave = activeRateId;
   const a = parseFloat($("#rate-score-a").value);
   const b = parseFloat($("#rate-score-b").value);
   const media = (a + b) / 2;
-  try {
-    await titlesCollection().doc(activeRateId).update({
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  await withLoading(submitBtn, async () => {
+    await titlesCollection().doc(idToSave).update({
       status: "historico",
       rating: { a, b, media },
       watchedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     closeAllModals();
-  } catch (err) { console.error(err); }
+  });
 });
 
 

@@ -651,6 +651,26 @@ img.title-poster { object-fit: cover; }
 .slider-a::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--poltrona-a); border: none; cursor: pointer; }
 .slider-b::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--poltrona-b); border: none; cursor: pointer; }
 
+/* ---------- TOAST / AVISOS ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  background: var(--cortina-alta);
+  border: 1px solid var(--erro);
+  color: var(--texto);
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  max-width: min(420px, 90vw);
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  z-index: 200;
+}
+.toast-success { border-color: var(--poltrona-b); }
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 560px) {
   .app-header { flex-direction: column; align-items: flex-start; gap: 8px; }

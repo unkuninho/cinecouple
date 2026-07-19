@@ -18,3 +18,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// Garante que a sessão fica salva no navegador entre recarregamentos de página.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((err) => {
+  console.error("Não deu pra configurar a persistência de sessão:", err);
+});
