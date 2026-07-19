@@ -1,3 +1,11 @@
+// ============================================================
+// CONFIGURAÇÃO DO FIREBASE
+// ============================================================
+// Substitua os valores abaixo pelos dados do SEU projeto Firebase.
+// Veja o README.md para o passo a passo de como criar o projeto
+// e pegar essas informações (é gratuito e leva ~5 minutos).
+// ============================================================
+
 const firebaseConfig = {
   apiKey: "AIzaSyCmD1aHSFFrmRGE13ZR7I99__b29DhdCkA",
   authDomain: "goal-tracker-3f954.firebaseapp.com",
