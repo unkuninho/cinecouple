@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dupla Sessão</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎟️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- TELA DE CARREGAMENTO -->
+<div id="loading-screen" class="screen loading-screen">
+  <div class="reel">🎬</div>
+  <p>Abrindo a sala...</p>
+</div>
+
+<!-- TELA DE AUTENTICAÇÃO -->
+<div id="auth-screen" class="screen auth-screen" hidden>
+  <div class="marquee-header">
+    <span class="marquee-title">Dupla Sessão</span>
+    <span class="marquee-sub">o cinema de vocês dois</span>
+  </div>
+
+  <div class="auth-card ticket">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Entrar</button>
+      <button class="auth-tab" data-tab="signup">Criar conta do casal</button>
+    </div>
+
+    <form id="login-form" class="auth-form">
+      <label>E-mail
+        <input type="email" id="login-email" required autocomplete="email">
+      </label>
+      <label>Senha
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </label>
+      <p class="form-error" id="login-error"></p>
+      <button type="submit" class="btn btn-primary">Entrar na sessão</button>
+    </form>
+
+    <form id="signup-form" class="auth-form" hidden>
+      <label>Nome do casal <span class="hint">(ex: Ana &amp; Beto)</span>
+        <input type="text" id="signup-couple-name" required>
+      </label>
+      <div class="two-col">
+        <label>Nome da pessoa 1
+          <input type="text" id="signup-partner1" required>
+        </label>
+        <label>Nome da pessoa 2
+          <input type="text" id="signup-partner2" required>
+        </label>
+      </div>
+      <label>E-mail
+        <input type="email" id="signup-email" required autocomplete="email">
+      </label>
+      <label>Senha <span class="hint">(mínimo 6 caracteres)</span>
+        <input type="password" id="signup-password" required autocomplete="new-password">
+      </label>
+      <p class="form-error" id="signup-error"></p>
+      <button type="submit" class="btn btn-primary">Criar conta do casal</button>
+      <p class="form-note">Essa é uma conta única do casal — os dois usam o mesmo e-mail e senha, cada um no seu computador.</p>
+    </form>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app-screen" class="screen app-screen" hidden>
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-title">Dupla Sessão</span>
+      <span class="brand-couple" id="couple-name-display"></span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" id="logout-btn">Sair</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="main-tabs">
+    <button class="tab-btn active" data-status="watchlist">Para assistir</button>
+    <button class="tab-btn" data-status="assistindo">Assistindo</button>
+    <button class="tab-btn" data-status="historico">Histórico</button>
+  </nav>
+
+  <main class="content">
+    <div class="content-toolbar">
+      <p class="content-count" id="content-count"></p>
+      <button class="btn btn-primary btn-small" id="add-title-btn">+ Adicionar título</button>
+    </div>
+
+    <div id="empty-state" class="empty-state" hidden>
+      <p class="empty-emoji">🍿</p>
+      <p id="empty-text">Nada por aqui ainda.</p>
+    </div>
+
+    <div id="titles-grid" class="titles-grid"></div>
+  </main>
+</div>
+
+<!-- MODAL: ADICIONAR TÍTULO -->
+<div id="add-modal" class="modal-overlay" hidden>
+  <div class="modal ticket">
+    <button class="modal-close" data-close-modal>×</button>
+    <h2>Novo título</h2>
+    <form id="add-title-form">
+      <div class="type-toggle">
+        <button type="button" class="type-btn active" data-type="filme">🎬 Filme</button>
+        <button type="button" class="type-btn" data-type="serie">📺 Série</button>
+      </div>
+      <label>Título
+        <input type="text" id="new-title" required>
+      </label>
+      <div class="two-col">
+        <label>Ano <span class="hint">(opcional)</span>
+          <input type="number" id="new-year" min="1900" max="2100">
+        </label>
+        <label>Pôster (URL) <span class="hint">(opcional)</span>
+          <input type="url" id="new-poster" placeholder="https://...">
+        </label>
+      </div>
+      <p class="form-error" id="add-title-error"></p>
+      <button type="submit" class="btn btn-primary">Adicionar à lista</button>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: DETALHE / EPISÓDIOS -->
+<div id="detail-modal" class="modal-overlay" hidden>
+  <div class="modal ticket detail-modal">
+    <button class="modal-close" data-close-modal>×</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- MODAL: AVALIAR -->
+<div id="rate-modal" class="modal-overlay" hidden>
+  <div class="modal ticket">
+    <button class="modal-close" data-close-modal>×</button>
+    <h2>Como foi a sessão?</h2>
+    <p class="rate-subtitle" id="rate-title-name"></p>
+
+    <div class="dual-gauge" id="dual-gauge">
+      <svg viewBox="0 0 240 140" class="gauge-svg">
+        <path d="M 20 120 A 100 100 0 0 1 120 20" class="gauge-arc gauge-arc-a"/>
+        <path d="M 120 20 A 100 100 0 0 1 220 120" class="gauge-arc gauge-arc-b"/>
+        <circle cx="120" cy="120" r="42" class="gauge-center-circle"/>
+      </svg>
+      <div class="gauge-avg" id="gauge-avg">–</div>
+      <div class="gauge-avg-label">média do casal</div>
+    </div>
+
+    <form id="rate-form">
+      <label class="rate-label rate-label-a">
+        <span id="rate-name-a"></span>
+        <input type="range" min="0" max="10" step="0.5" value="7" id="rate-score-a" class="slider slider-a">
+        <span class="rate-value" id="rate-value-a">7.0</span>
+      </label>
+      <label class="rate-label rate-label-b">
+        <span id="rate-name-b"></span>
+        <input type="range" min="0" max="10" step="0.5" value="7" id="rate-score-b" class="slider slider-b">
+        <span class="rate-value" id="rate-value-b">7.0</span>
+      </label>
+      <button type="submit" class="btn btn-primary">Guardar no histórico</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
