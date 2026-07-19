@@ -32,9 +32,19 @@ function showScreen(id) {
 
 function closeAllModals() {
   $all(".modal-overlay").forEach(m => m.setAttribute("hidden", ""));
+}
+
+// Fecha os modais E esquece o título selecionado — usado só quando o
+// usuário fecha de propósito (X, clique fora, ou Esc), nunca em transições internas.
+function userCloseModals() {
+  closeAllModals();
   activeDetailId = null;
   activeRateId = null;
 }
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") userCloseModals();
+});
 
 let toastTimer = null;
 function showToast(message, type = "error") {
@@ -76,11 +86,11 @@ function mensagemErroFirestore(err) {
 }
 
 $all("[data-close-modal]").forEach(btn => {
-  btn.addEventListener("click", closeAllModals);
+  btn.addEventListener("click", userCloseModals);
 });
 $all(".modal-overlay").forEach(overlay => {
   overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) closeAllModals();
+    if (e.target === overlay) userCloseModals();
   });
 });
 
@@ -544,6 +554,7 @@ function openRateModal(id) {
   const t = titles.find(x => x.id === id);
   if (!t) { showToast("Não encontrei esse título na lista. Tente de novo."); return; }
   activeRateId = id;
+  $("#rate-modal").dataset.titleId = id;
   $("#rate-title-name").textContent = t.titulo;
   $("#rate-name-a").textContent = coupleData.partner1Name;
   $("#rate-name-b").textContent = coupleData.partner2Name;
@@ -574,11 +585,11 @@ $("#rate-score-b").addEventListener("input", updateGauge);
 
 $("#rate-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!activeRateId) {
-    showToast("Perdemos a referência do título. Feche este modal e abra de novo pela lista.");
+  const idToSave = $("#rate-modal").dataset.titleId || activeRateId;
+  if (!idToSave) {
+    showToast("Perdemos a referência do título. Feche este modal (X ou Esc) e abra de novo pela lista.");
     return;
   }
-  const idToSave = activeRateId;
   const a = parseFloat($("#rate-score-a").value);
   const b = parseFloat($("#rate-score-b").value);
   const media = (a + b) / 2;
@@ -592,5 +603,3 @@ $("#rate-form").addEventListener("submit", async (e) => {
     closeAllModals();
   });
 });
-
-
